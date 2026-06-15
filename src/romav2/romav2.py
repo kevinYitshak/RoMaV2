@@ -1,17 +1,15 @@
 from __future__ import annotations
 
+import logging
+from collections import OrderedDict
 from dataclasses import dataclass
 from pathlib import Path
-from collections import OrderedDict
-
 
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from PIL import Image
-
-import logging
 from romav2.device import device
 from romav2.features import Descriptor, FineFeatures
 from romav2.geometry import (
@@ -24,7 +22,7 @@ from romav2.geometry import (
 from romav2.io import check_not_i16
 from romav2.matcher import Matcher
 from romav2.refiner import Refiners
-from romav2.types import Setting, ImageLike
+from romav2.types import ImageLike, Setting
 
 logger = logging.getLogger(__name__)
 
@@ -94,10 +92,10 @@ class RoMaV2(nn.Module):
         if cfg is None:
             # default
             cfg = RoMaV2.Cfg()
-            
+
         weights = torch.hub.load_state_dict_from_url(
             "https://github.com/Parskatt/RoMaV2/releases/download/v2.0.1/romav2.0.1.pt",
-            map_location=device
+            map_location=device,
         )
         self.f = Descriptor(cfg.descriptor)
         self.matcher = Matcher(cfg.matcher)
@@ -260,6 +258,8 @@ class RoMaV2(nn.Module):
                         refiner_output_BA["warp"],
                         refiner_output_BA["confidence"],
                     )
+            predictions["refiner_features_A"] = refiner_features_A
+            predictions["refiner_features_B"] = refiner_features_B
             predictions["warp_AB"] = warp_AB
             predictions["confidence_AB"] = confidence_AB
             if self.bidirectional:
@@ -279,14 +279,14 @@ class RoMaV2(nn.Module):
         elif isinstance(img_like, Image.Image):
             img = torch.from_numpy(np.array(img_like)).permute(2, 0, 1).to(device)
         elif isinstance(img_like, np.ndarray):
-            assert img_like.shape[-1] == 3, (
-                f"Image must have 3 channels, but got shape {img_like.shape=}"
-            )
+            assert (
+                img_like.shape[-1] == 3
+            ), f"Image must have 3 channels, but got shape {img_like.shape=}"
             img = torch.from_numpy(img_like).permute(2, 0, 1).to(device)
         elif isinstance(img_like, torch.Tensor):
-            assert img_like.shape[1] == 3, (
-                f"Image must have 3 channels, but got shape {img_like.shape=}"
-            )
+            assert (
+                img_like.shape[1] == 3
+            ), f"Image must have 3 channels, but got shape {img_like.shape=}"
             img = img_like
         else:
             raise ValueError(f"Unsupported image type: {type(img_like)}")
@@ -341,7 +341,7 @@ class RoMaV2(nn.Module):
             img_B_hr = None
 
         preds = self(img_A_lr, img_B_lr, img_A_hr=img_A_hr, img_B_hr=img_B_hr)
-        
+
         warp_AB = preds["warp_AB"]
         confidence_AB = preds["confidence_AB"]
         warp_BA = preds["warp_BA"]
@@ -363,7 +363,9 @@ class RoMaV2(nn.Module):
             "overlap_AB": overlap_AB.clone(),
             "precision_AB": precision_AB.clone(),
             "warp_BA": warp_BA.clone() if warp_BA is not None else None,
-            "confidence_BA": confidence_BA.clone() if confidence_BA is not None else None,
+            "confidence_BA": (
+                confidence_BA.clone() if confidence_BA is not None else None
+            ),
             "overlap_BA": overlap_BA.clone() if overlap_BA is not None else None,
             "precision_BA": precision_BA.clone() if precision_BA is not None else None,
         }
@@ -386,9 +388,7 @@ class RoMaV2(nn.Module):
             confidence_BA = preds["overlap_BA"]
             warp_BA = preds["warp_BA"]
 
-            precision_BA = (
-                preds["precision_BA"] if "precision_BA" in preds else None
-            )
+            precision_BA = preds["precision_BA"] if "precision_BA" in preds else None
             warp_BA = warp_BA[0]
             confidence_BA = confidence_BA[0]
             if precision_BA is not None:
@@ -452,12 +452,16 @@ class RoMaV2(nn.Module):
         return (
             sampled_matches[balanced_samples],
             sampled_confidence[balanced_samples],
-            sampled_precision[balanced_samples][:, 0]
-            if sampled_precision is not None
-            else None,
-            sampled_precision[balanced_samples][:, 1]
-            if sampled_precision is not None
-            else None,
+            (
+                sampled_precision[balanced_samples][:, 0]
+                if sampled_precision is not None
+                else None
+            ),
+            (
+                sampled_precision[balanced_samples][:, 1]
+                if sampled_precision is not None
+                else None
+            ),
         )
 
     @classmethod

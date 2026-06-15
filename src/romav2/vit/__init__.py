@@ -200,6 +200,7 @@ class MatchTransformer(nn.Module):
         self, x: Tensor, masks: Optional[Tensor] = None
     ) -> List[Dict[ViTOutput, Tensor]]:
         assert masks is None
+        V = x.shape[1]
         t2_x, hw_tuple = self.prepare_tokens(x)
         x = t2_x
         H, W = hw_tuple
@@ -211,9 +212,9 @@ class MatchTransformer(nn.Module):
             if self.multiview and self.mv_attention_mode == "alternating":
                 # every kth block run only self attention
                 if idx % 2 == 1:
-                    x = rearrange(x, "B (V H W) D -> (B V) (H W) D", V=2, H=H, W=W)
+                    x = rearrange(x, "B (V H W) D -> (B V) (H W) D", V=V, H=H, W=W)
                     x = blk(x, rope_sincos)
-                    x = rearrange(x, "(B V) (H W) D -> B (V H W) D", V=2, H=H, W=W)
+                    x = rearrange(x, "(B V) (H W) D -> B (V H W) D", V=V, H=H, W=W)
                 else:
                     x = blk(x, None)
             else:

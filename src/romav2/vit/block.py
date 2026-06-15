@@ -6,9 +6,8 @@
 from typing import Callable, List, Optional
 
 import torch
-from torch import Tensor, nn
-
 from romav2.vit.utils import cat_keep_shapes, uncat_with_shapes
+from torch import Tensor, nn
 
 from .attention import CausalSelfAttention, SelfAttention
 from .ffn_layers import Mlp

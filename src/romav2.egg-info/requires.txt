@@ -1,0 +1,8 @@
+tqdm>=4.67.1
+
+[:sys_platform == "linux"]
+fused-local-corr
+
+[eval]
+kornia>=0.8.2
+wxbs-benchmark>=0.0.4

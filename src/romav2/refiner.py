@@ -1,15 +1,14 @@
-from functools import partial
-
-from torch.nn import functional as F
 from dataclasses import dataclass
+from functools import partial
 from typing import Literal
+
 import torch
 import torch.nn as nn
-from romav2.local_correlation import local_correlation
-from romav2.geometry import get_normalized_grid
 from romav2.device import device
-from romav2.geometry import bhwc_grid_sample
-from romav2.types import RefinersType, NormType
+from romav2.geometry import bhwc_grid_sample, get_normalized_grid
+from romav2.local_correlation import local_correlation
+from romav2.types import NormType, RefinersType
+from torch.nn import functional as F
 
 
 def create_block(
@@ -147,9 +146,9 @@ class ConvRefiner(nn.Module):
         if prev_confidence is not None:
             prev_confidence = prev_confidence.detach()
         B, H_A, W_A, D = f_A.shape
-        assert D == self.cfg.feat_dim, (
-            f"Config feature dimension {self.cfg.feat_dim=} must be the same as the input feature dimension {D=}"
-        )
+        assert (
+            D == self.cfg.feat_dim
+        ), f"Config feature dimension {self.cfg.feat_dim=} must be the same as the input feature dimension {D=}"
 
         f_A = self.proj(f_A.reshape(B, H_A * W_A, self.cfg.feat_dim).float()).reshape(
             B, H_A, W_A, self.cfg.proj_dim
@@ -184,6 +183,7 @@ class ConvRefiner(nn.Module):
             d = d.to(memory_format=torch.channels_last)
         z = self.block1(d)
         z = self.hidden_blocks(z)
+        # print(f"z roma: {z.shape}")
         z = z.float()
 
         displacement = self.warp_head(z)
@@ -219,7 +219,7 @@ class ConvRefiner(nn.Module):
         else:
             confidence = delta_confidence
 
-        return {"warp": warp, "confidence": confidence}
+        return {"warp": warp, "confidence": confidence, "z": z}
 
 
 class Refiners:

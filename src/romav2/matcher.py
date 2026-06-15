@@ -1,13 +1,14 @@
-import torch
-import torch.nn as nn
 from dataclasses import dataclass
 from typing import Literal
-from romav2.geometry import get_normalized_grid
+
+import torch
+import torch.nn as nn
 from einops import einsum
 from romav2.device import device
-from romav2.vit import ViTModel, vit_from_name
-from romav2.types import HeadType, MatcherStyle
 from romav2.dpt import DPTHead
+from romav2.geometry import get_normalized_grid
+from romav2.types import HeadType, MatcherStyle
+from romav2.vit import ViTModel, vit_from_name
 
 
 def normalize(x: torch.Tensor, dim: int):
@@ -127,9 +128,9 @@ class Matcher(nn.Module):
         f_B = torch.cat(f_list_B, dim=-1)
         B, H_A, W_A, D_feat = f_A.shape
         B, H_B, W_B, D_feat = f_B.shape
-        assert D_feat == self.cfg.feat_dim * self.cfg.num_feature_layers, (
-            "Feature dimension mismatch"
-        )
+        assert (
+            D_feat == self.cfg.feat_dim * self.cfg.num_feature_layers
+        ), "Feature dimension mismatch"
         x = get_normalized_grid(B, H_B, W_B)
         x_emb = nn.functional.linear(
             x.reshape(B, H_B * W_B, 2), self.scale * self.omega
@@ -146,6 +147,14 @@ class Matcher(nn.Module):
 
         f_mv_A = f_mv_A.float()
         f_mv_B = f_mv_B.float()
+
+        # print(f"f_mv_A: {f_mv_A.shape}")
+        # print(f"f_mv_B: {f_mv_B.shape}")
+
+        preds["f_mv_A"] = f_mv_A
+        preds["f_mv_B"] = f_mv_B
+        # return preds
+        # assert 1 == 0
 
         assert H_A == H_B and W_A == W_B, "H_A and W_A must be equal to H_B and W_B"
         attn_AB_logits, attn_AB, match_emb_AB = _compute_match_embeddings(
